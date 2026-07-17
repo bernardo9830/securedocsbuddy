@@ -7,11 +7,10 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEndpointEmbeddings, HuggingFaceEndpoint, ChatHuggingFace
-from langchain_community.vectorstores import FAISS
 from langchain_core.tools import tool
-from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver  # memoria della conversazione
+# Nota: gli import pesanti (langchain_huggingface, FAISS, create_agent) stanno
+# DENTRO _costruisci_risorse() per un avvio rapido dell'app (niente timeout su Render).
 
 from docx import Document as DocxDocument  # python-docx: crea i file Word
 from pptx import Presentation              # python-pptx: crea le slide
@@ -21,19 +20,14 @@ load_dotenv()  # carica il token HF dal .env
 CARTELLA_DOWNLOAD = "downloads"
 os.makedirs(CARTELLA_DOWNLOAD, exist_ok=True)
 
-# --- Componenti dell'agente: costruiti UNA sola volta, all'avvio ---
-# Embeddings via HuggingFace Inference API (niente torch: leggero e cloud-ready).
-embeddings = HuggingFaceEndpointEmbeddings(
-    model="sentence-transformers/all-MiniLM-L6-v2",
-    task="feature-extraction",
-    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
-)
-# Carico l'indice FAISS (leggero, niente chromadb/onnxruntime).
-db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
-retriever = db.as_retriever(search_kwargs={"k": 3})
-
-motore = HuggingFaceEndpoint(repo_id="Qwen/Qwen2.5-7B-Instruct", task="text-generation")
-llm = ChatHuggingFace(llm=motore)
+# --- Risorse pesanti (embeddings, indice FAISS, LLM, agente) ---
+# Costruite in modo LAZY alla prima richiesta: cosi' l'app apre subito la porta
+# e non va in timeout su Render. All'avvio restano None.
+embeddings = None
+db = None
+retriever = None
+llm = None
+agente = None
 
 # "Cassetto condiviso": segnala all'endpoint l'ultimo file creato (url + nome).
 ultimo_file = {"url": None, "nome": None}
@@ -127,21 +121,40 @@ def cita_fonti(domanda: str) -> str:
 # La memoria: conserva i messaggi di ogni conversazione (in RAM).
 memoria = InMemorySaver()
 
-# L'agente ora ha QUATTRO strumenti e una MEMORIA.
-agente = create_agent(
-    model=llm,
-    tools=[cerca_documenti, crea_riassunto_word, crea_slide_powerpoint, cita_fonti],
-    checkpointer=memoria,
-    system_prompt=(
-        "Sei DocBuddy, un assistente sui documenti. "
-        "Ricorda i messaggi precedenti e usali per le domande di follow-up. "
-        "Usa cerca_documenti per rispondere a domande sui documenti. "
-        "Usa crea_riassunto_word quando l'utente chiede un riassunto o un documento Word. "
-        "Usa crea_slide_powerpoint quando l'utente chiede delle slide o una presentazione. "
-        "Usa cita_fonti quando l'utente chiede le fonti o da dove viene un'informazione. "
-        "Per i saluti rispondi direttamente senza usare strumenti."
-    ),
-)
+
+def _costruisci_risorse():
+    """Costruisce UNA sola volta embeddings, indice FAISS, LLM e agente.
+    Viene chiamata alla PRIMA richiesta (lazy), cosi' l'avvio dell'app e' rapido."""
+    global embeddings, db, retriever, llm, agente
+    if agente is not None:
+        return
+    from langchain_huggingface import HuggingFaceEndpointEmbeddings, HuggingFaceEndpoint, ChatHuggingFace
+    from langchain_community.vectorstores import FAISS
+    from langchain.agents import create_agent
+
+    embeddings = HuggingFaceEndpointEmbeddings(
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        task="feature-extraction",
+        huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
+    )
+    db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    retriever = db.as_retriever(search_kwargs={"k": 3})
+    motore = HuggingFaceEndpoint(repo_id="Qwen/Qwen2.5-7B-Instruct", task="text-generation")
+    llm = ChatHuggingFace(llm=motore)
+    agente = create_agent(
+        model=llm,
+        tools=[cerca_documenti, crea_riassunto_word, crea_slide_powerpoint, cita_fonti],
+        checkpointer=memoria,
+        system_prompt=(
+            "Sei SecureDocs, un assistente sui documenti. "
+            "Ricorda i messaggi precedenti e usali per le domande di follow-up. "
+            "Usa cerca_documenti per rispondere a domande sui documenti. "
+            "Usa crea_riassunto_word quando l'utente chiede un riassunto o un documento Word. "
+            "Usa crea_slide_powerpoint quando l'utente chiede delle slide o una presentazione. "
+            "Usa cita_fonti quando l'utente chiede le fonti o da dove viene un'informazione. "
+            "Per i saluti rispondi direttamente senza usare strumenti."
+        ),
+    )
 
 app = FastAPI()
 
@@ -170,6 +183,7 @@ def ping():
 @app.post("/chiedi")
 def chiedi(richiesta: Richiesta, utente: User = Depends(get_current_user)):
     # Depends(get_current_user): senza token valido FastAPI risponde 401 da solo.
+    _costruisci_risorse()  # costruisce l'agente alla prima richiesta (lazy)
     ultimo_file["url"] = None
     ultimo_file["nome"] = None
     # thread_id derivato dall'utente: ogni utente ha la SUA memoria isolata.
