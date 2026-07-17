@@ -1,0 +1,12 @@
+# Service: da' un "indirizzo stabile" ai pod e smista il traffico verso di loro.
+apiVersion: v1
+kind: Service
+metadata:
+  name: docbuddy
+spec:
+  selector:
+    app: docbuddy        # instrada verso i pod con questa etichetta
+  ports:
+    - port: 8000         # porta del service
+      targetPort: 8000   # porta del container a cui inoltrare
+  type: ClusterIP        # visibile dentro il cluster (accederemo con port-forward)

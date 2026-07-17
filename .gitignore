@@ -1,0 +1,18 @@
+﻿# Ambiente virtuale (ricreabile, non va su GitHub)
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# File di ambiente / segreti
+.env
+
+# File di sistema/editor
+.DS_Store
+.vscode/
+chroma_db/
+chroma_db/
+downloads/
+fonte_fastapi/
+*.tar

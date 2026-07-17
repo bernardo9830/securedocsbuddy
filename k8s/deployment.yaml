@@ -1,0 +1,24 @@
+# Deployment: dice a Kubernetes COSA far girare e in quante copie (repliche).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docbuddy
+spec:
+  replicas: 1                     # quante copie (pod) dell'app tenere attive
+  selector:
+    matchLabels:
+      app: docbuddy               # come il Deployment riconosce i suoi pod
+  template:
+    metadata:
+      labels:
+        app: docbuddy             # etichetta applicata ai pod creati
+    spec:
+      containers:
+        - name: docbuddy
+          image: docbuddy:latest  # l'immagine Docker che hai costruito
+          imagePullPolicy: Never  # usa l'immagine LOCALE, non scaricarla da internet
+          ports:
+            - containerPort: 8000 # la porta su cui gira uvicorn dentro il container
+          envFrom:
+            - secretRef:
+                name: docbuddy-secret   # inietta il token HF da un Secret
