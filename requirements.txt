@@ -10,3 +10,5 @@ sentence-transformers
 python-docx
 python-pptx
 datasets
+pytest
+httpx
