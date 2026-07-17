@@ -6,7 +6,6 @@ langchain
 langchain-huggingface
 langchain-chroma
 langgraph
-sentence-transformers
 python-docx
 python-pptx
 datasets

@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint, ChatHuggingFace
+from langchain_huggingface import HuggingFaceEndpointEmbeddings, HuggingFaceEndpoint, ChatHuggingFace
 from langchain_chroma import Chroma
 from langchain_core.tools import tool
 from langchain.agents import create_agent
@@ -22,7 +22,12 @@ CARTELLA_DOWNLOAD = "downloads"
 os.makedirs(CARTELLA_DOWNLOAD, exist_ok=True)
 
 # --- Componenti dell'agente: costruiti UNA sola volta, all'avvio ---
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# Embeddings via HuggingFace Inference API (niente torch: leggero e cloud-ready).
+embeddings = HuggingFaceEndpointEmbeddings(
+    model="sentence-transformers/all-MiniLM-L6-v2",
+    task="feature-extraction",
+    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
+)
 db = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
 retriever = db.as_retriever(search_kwargs={"k": 3})
 
