@@ -9,3 +9,4 @@ langgraph
 sentence-transformers
 python-docx
 python-pptx
+datasets
