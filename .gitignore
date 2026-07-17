@@ -11,8 +11,6 @@ __pycache__/
 # File di sistema/editor
 .DS_Store
 .vscode/
-chroma_db/
-chroma_db/
 downloads/
 fonte_fastapi/
 *.tar

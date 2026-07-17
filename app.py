@@ -152,6 +152,10 @@ app.include_router(auth_router)
 from auth import get_current_user
 from models import User
 
+# Crea le tabelle del database all'avvio, se non esistono (idempotente): serve in cloud.
+from database import Base, engine
+Base.metadata.create_all(bind=engine)
+
 
 class Richiesta(BaseModel):
     domanda: str

@@ -13,6 +13,13 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg2://securedocs:devpassword@localhost:5432/securedocs",
 )
 
+# Le piattaforme cloud (Render, ecc.) danno un URL "postgres://..." o "postgresql://..."
+# senza driver: lo normalizziamo per usare sempre psycopg2.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 # L'engine e' la "presa di corrente" verso il database.
 engine = create_engine(DATABASE_URL, echo=True)  # echo=True stampa l'SQL (utile per imparare)
 
