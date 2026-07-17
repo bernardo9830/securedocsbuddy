@@ -139,6 +139,10 @@ agente = create_agent(
 
 app = FastAPI()
 
+# Router dell'autenticazione (registrazione, login, /me)
+from auth_router import router as auth_router
+app.include_router(auth_router)
+
 
 class Richiesta(BaseModel):
     domanda: str

@@ -14,3 +14,7 @@ pytest
 httpx
 sqlalchemy
 psycopg2-binary
+python-jose[cryptography]
+email-validator
+python-multipart
+bcrypt
