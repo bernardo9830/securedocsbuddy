@@ -166,9 +166,21 @@ app.include_router(auth_router)
 from auth import get_current_user
 from models import User
 
-# Crea le tabelle del database all'avvio, se non esistono (idempotente): serve in cloud.
+# Crea le tabelle del DB in un thread in background: cosi' l'avvio NON si blocca
+# se il database e' lento/irraggiungibile e la porta si apre subito.
+import threading
 from database import Base, engine
-Base.metadata.create_all(bind=engine)
+
+
+def _crea_tabelle():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Tabelle del database pronte.")
+    except Exception as e:
+        print("ATTENZIONE: create_all fallito:", e)
+
+
+threading.Thread(target=_crea_tabelle, daemon=True).start()
 
 
 class Richiesta(BaseModel):

@@ -21,7 +21,12 @@ elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_UR
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # L'engine e' la "presa di corrente" verso il database.
-engine = create_engine(DATABASE_URL, echo=True)  # echo=True stampa l'SQL (utile per imparare)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,                 # verifica la connessione prima di usarla
+    connect_args={"connect_timeout": 5},  # non restare appeso se il DB non risponde
+)
 
 # SessionLocal e' la "fabbrica" di sessioni: ogni sessione e' una conversazione col DB.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
