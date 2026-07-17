@@ -2,7 +2,7 @@
 import os
 import uuid
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
@@ -143,6 +143,10 @@ app = FastAPI()
 from auth_router import router as auth_router
 app.include_router(auth_router)
 
+# Dependency e modello per proteggere gli endpoint e isolare per utente
+from auth import get_current_user
+from models import User
+
 
 class Richiesta(BaseModel):
     domanda: str
@@ -154,10 +158,12 @@ def ping():
 
 
 @app.post("/chiedi")
-def chiedi(richiesta: Richiesta):
+def chiedi(richiesta: Richiesta, utente: User = Depends(get_current_user)):
+    # Depends(get_current_user): senza token valido FastAPI risponde 401 da solo.
     ultimo_file["url"] = None
     ultimo_file["nome"] = None
-    config = {"configurable": {"thread_id": stato["thread"]}}
+    # thread_id derivato dall'utente: ogni utente ha la SUA memoria isolata.
+    config = {"configurable": {"thread_id": f"user-{utente.id}"}}
     risultato = agente.invoke(
         {"messages": [{"role": "user", "content": richiesta.domanda}]},
         config=config,
@@ -177,13 +183,12 @@ def chiedi(richiesta: Richiesta):
 
 
 @app.post("/svuota-memoria")
-def svuota_memoria():
-    # Cancello la conversazione corrente dalla memoria e ne apro una nuova.
+def svuota_memoria(utente: User = Depends(get_current_user)):
+    # Cancella SOLO la conversazione di questo utente.
     try:
-        memoria.delete_thread(stato["thread"])
+        memoria.delete_thread(f"user-{utente.id}")
     except Exception:
         pass
-    stato["thread"] = "conversazione-" + uuid.uuid4().hex[:6]
     return {"ok": True}
 
 
