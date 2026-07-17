@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from datasets import load_dataset
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 
 load_dotenv()  # carica HUGGINGFACEHUB_API_TOKEN dal .env
 
@@ -26,12 +26,9 @@ embeddings = HuggingFaceEndpointEmbeddings(
 
 # 3) Creo il DB vettoriale Chroma e ci carico i documenti (calcola gli embeddings).
 #    persist_directory = la cartella su disco dove Chroma salva il database.
-db = Chroma.from_documents(
-    documents=documenti,
-    embedding=embeddings,
-    persist_directory="chroma_db",
-)
-print("DB vettoriale creato e salvato in ./chroma_db")
+db = FAISS.from_documents(documenti, embeddings)
+db.save_local("faiss_index")
+print("Indice FAISS creato e salvato in ./faiss_index")
 
 # 4) Prova: cerco i documenti piu' vicini a una domanda (similarity search).
 #    Uso la domanda del primo documento: dovrei ritrovarlo tra i risultati.

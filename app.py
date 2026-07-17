@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEndpointEmbeddings, HuggingFaceEndpoint, ChatHuggingFace
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_core.tools import tool
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver  # memoria della conversazione
@@ -28,7 +28,8 @@ embeddings = HuggingFaceEndpointEmbeddings(
     task="feature-extraction",
     huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
 )
-db = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+# Carico l'indice FAISS (leggero, niente chromadb/onnxruntime).
+db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
 retriever = db.as_retriever(search_kwargs={"k": 3})
 
 motore = HuggingFaceEndpoint(repo_id="Qwen/Qwen2.5-7B-Instruct", task="text-generation")

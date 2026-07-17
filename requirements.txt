@@ -4,7 +4,6 @@ pydantic
 python-dotenv
 langchain
 langchain-huggingface
-langchain-chroma
 langgraph
 python-docx
 python-pptx
@@ -17,3 +16,5 @@ python-jose[cryptography]
 email-validator
 python-multipart
 bcrypt
+langchain-community
+faiss-cpu
