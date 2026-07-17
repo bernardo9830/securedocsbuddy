@@ -12,3 +12,5 @@ python-pptx
 datasets
 pytest
 httpx
+sqlalchemy
+psycopg2-binary
