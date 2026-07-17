@@ -1,0 +1,67 @@
+# Nome che vedrai nella tab "Actions" su GitHub
+name: CI
+
+# TRIGGER: quando far partire la pipeline.
+# Qui: a ogni push e a ogni pull request.
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Un JOB si chiama "test". Gira su un RUNNER: una macchina Ubuntu pulita
+  # creata da GitHub apposta per questa esecuzione.
+  test:
+    runs-on: ubuntu-latest
+
+    # SERVICES: container di supporto che vivono accanto al job.
+    # Qui avviamo un PostgreSQL 16 per i test di auth.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: securedocs
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: securedocs
+        ports:
+          - 5432:5432
+        # Healthcheck: il job aspetta che Postgres sia davvero pronto
+        # prima di lanciare i test.
+        options: >-
+          --health-cmd "pg_isready -U securedocs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Variabili d'ambiente disponibili a TUTTI gli step del job.
+    env:
+      # I test si collegano a Postgres su localhost (la porta 5432 e' mappata sopra).
+      DATABASE_URL: postgresql+psycopg2://securedocs:devpassword@localhost:5432/securedocs
+      # Per i TEST va bene un valore fittizio in chiaro: non protegge nulla di reale.
+      # In PRODUZIONE questo sarebbe un secret, MAI scritto nel file.
+      SECRET_KEY: un_valore_dummy_per_i_test
+
+    steps:
+      # 1) Scarica il codice del repo dentro il runner
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      # 2) Installa Python 3.12
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3) Installa le dipendenze del progetto
+      #    NOTA: importare app scarica il modello di embedding e installa torch,
+      #    quindi questo step + il primo pytest possono impiegare qualche minuto.
+      #    La prima run e' lenta: e' normale.
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      # 4) Crea le tabelle sul Postgres del service
+      - name: Inizializza il database
+        run: python init_db.py
+
+      # 5) Lancia i test
+      - name: Esegui i test
+        run: pytest
