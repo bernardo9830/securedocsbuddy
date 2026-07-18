@@ -20,13 +20,16 @@ if DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+# Argomenti di connessione diversi a seconda del database.
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}   # SQLite con piu' thread
+elif DATABASE_URL.startswith("postgresql"):
+    connect_args = {"connect_timeout": 5}          # Postgres: fail-fast
+else:
+    connect_args = {}
+
 # L'engine e' la "presa di corrente" verso il database.
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,                 # verifica la connessione prima di usarla
-    connect_args={"connect_timeout": 5},  # non restare appeso se il DB non risponde
-)
+engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True, connect_args=connect_args)
 
 # SessionLocal e' la "fabbrica" di sessioni: ogni sessione e' una conversazione col DB.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
